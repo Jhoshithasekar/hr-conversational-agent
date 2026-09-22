@@ -1,6 +1,14 @@
-from app.database import Base
-from app.models  import Department
-from app.database import settings
+from app.database import Base, settings
+from app.models import (
+    AuditLog,
+    Department,
+    Employee,
+    LeaveRecord,
+    LeaveRequest,
+    PolicyDocument,
+    PoshIncident,
+    ReimbursementClaim,
+)
 
 from logging.config import fileConfig
 
@@ -15,7 +23,7 @@ config = context.config
 
 config.set_main_option(
     "sqlalchemy.url",
-    settings.DATABASE_URL.replace("%","%%")
+    settings.DATABASE_URL.replace("%", "%%")
 )
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

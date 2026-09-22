@@ -1,10 +1,26 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    JSON,
+    String,
+    Text,
+)  # type: ignore[reportMissingImports]
 
 from app.database import Base
 
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'passed', 'failed')",
+            name="ck_audit_logs_status",
+        ),
+    )
 
     id = Column(
         Integer,
@@ -26,6 +42,12 @@ class AuditLog(Base):
     action = Column(
         String(100),
         nullable=False
+    )
+
+    status = Column(
+        String(20),
+        nullable=False,
+        default="pending"
     )
 
     prompt_text = Column(

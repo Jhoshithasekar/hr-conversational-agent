@@ -61,6 +61,7 @@ def create_audit_log(
         user_id=audit_data.user_id,
         timestamp=audit_data.timestamp,
         action=audit_data.action,
+        status=audit_data.status,
         prompt_text=audit_data.prompt_text,
         extracted_parameters=audit_data.extracted_parameters,
         entity_type=audit_data.entity_type,
