@@ -3,7 +3,7 @@ from app.models import (
     AuditLog,
     Department,
     Employee,
-    LeaveRecord,
+    LeaveBalance,
     LeaveRequest,
     PolicyDocument,
     PoshIncident,
