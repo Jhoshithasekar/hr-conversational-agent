@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 
-import { EMPLOYEE_ID, fetchEmployee } from '../../api/employeeApi'
+import { fetchEmployee } from '../../api/employeeApi'
+import { useAuth } from '../../context/AuthContext'
 import Header from './Header'
 import Sidebar from './Sidebar'
 
 const pageDetails = {
   '/employee': {
-    title: 'Good morning, Neha',
+    title: 'Good morning',
     description: 'Here is a clear view of your HR workspace for today.',
   },
   '/employee/ask-hr': {
@@ -30,6 +31,8 @@ const pageDetails = {
 
 function Layout() {
   const location = useLocation()
+  const { user } = useAuth()
+  const employeeId = user?.employee_id
   const [employee, setEmployee] = useState(null)
   const [employeeState, setEmployeeState] = useState({
     loading: true,
@@ -37,9 +40,15 @@ function Layout() {
   })
 
   useEffect(() => {
+    if (!employeeId) {
+      setEmployee(null)
+      setEmployeeState({ loading: false, error: null })
+      return
+    }
+
     let isCurrent = true
 
-    fetchEmployee(EMPLOYEE_ID)
+    fetchEmployee(employeeId)
       .then((employeeData) => {
         if (isCurrent) {
           setEmployee(employeeData)
@@ -58,7 +67,7 @@ function Layout() {
     return () => {
       isCurrent = false
     }
-  }, [])
+  }, [employeeId])
 
   const details = pageDetails[location.pathname] ?? pageDetails['/employee']
   const title = location.pathname === '/employee' && employee

@@ -8,13 +8,17 @@ export class ApiError extends Error {
   }
 }
 
+const getAuthToken = () => localStorage.getItem('hr_auth_token') || ''
+
 export async function requestJson(path, options = {}) {
+  const authToken = getAuthToken()
   let response
 
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       headers: {
         Accept: 'application/json',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         ...(options.body ? { 'Content-Type': 'application/json' } : {}),
         ...options.headers,
       },

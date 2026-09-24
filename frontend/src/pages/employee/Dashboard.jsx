@@ -6,13 +6,16 @@ import RequestCard from '../../components/common/RequestCard'
 import StatCard from '../../components/common/StatCard'
 import ProfileCard from '../../components/profile/ProfileCard'
 
-import { EMPLOYEE_ID, fetchEmployee } from '../../api/employeeApi'
+import { fetchEmployee } from '../../api/employeeApi'
 import { fetchDepartment } from '../../api/departmentApi'
 import { fetchLeaveBalances } from '../../api/leaveBalanceApi'
 import { fetchEmployeeRequests } from '../../api/requestApi'
+import { useAuth } from '../../context/AuthContext'
 
 
 function Dashboard() {
+  const { user } = useAuth()
+  const employeeId = user?.employee_id
   const [employee, setEmployee] = useState(null)
   const [loadingEmployee, setLoadingEmployee] = useState(true)
   const [employeeError, setEmployeeError] = useState('')
@@ -23,27 +26,34 @@ function Dashboard() {
   const [requestState, setRequestState] = useState({ loading: true, error: '' })
 
   useEffect(() => {
+    if (!employeeId) {
+      setEmployee(null)
+      setLoadingEmployee(false)
+      setEmployeeError('')
+      return
+    }
+
     async function loadEmployeeProfile() {
       try {
         setLoadingEmployee(true)
         setEmployeeError('')
 
-        const employeeData = await fetchEmployee(EMPLOYEE_ID)
+        const employeeData = await fetchEmployee(employeeId)
 
-let departmentName = 'Not available'
+        let departmentName = 'Not available'
 
-if (employeeData.department_id) {
-  const departmentData = await fetchDepartment(
-    employeeData.department_id
-  )
+        if (employeeData.department_id) {
+          const departmentData = await fetchDepartment(
+            employeeData.department_id
+          )
 
-  departmentName = departmentData.name
-}
+          departmentName = departmentData.name
+        }
 
-setEmployee({
-  ...employeeData,
-  departmentName,
-})
+        setEmployee({
+          ...employeeData,
+          departmentName,
+        })
       } catch (error) {
         setEmployeeError(
           error.message ||
@@ -55,13 +65,19 @@ setEmployee({
     }
 
     loadEmployeeProfile()
-  }, [])
+  }, [employeeId])
 
   useEffect(() => {
+    if (!employeeId) {
+      setRecentRequests([])
+      setRequestState({ loading: false, error: '' })
+      return
+    }
+
     async function loadRecentRequests() {
       try {
         setRequestState({ loading: true, error: '' })
-        const requestData = await fetchEmployeeRequests(EMPLOYEE_ID)
+        const requestData = await fetchEmployeeRequests(employeeId)
         setRecentRequests(requestData.slice(0, 3))
         setRequestState({ loading: false, error: '' })
       } catch (error) {
@@ -73,14 +89,21 @@ setEmployee({
     }
 
     loadRecentRequests()
-  }, [])
+  }, [employeeId])
 
   useEffect(() => {
+    if (!employeeId) {
+      setLeaveBalances([])
+      setLoadingLeaveBalances(false)
+      setLeaveBalanceError('')
+      return
+    }
+
     async function loadLeaveBalances() {
       try {
         setLoadingLeaveBalances(true)
         setLeaveBalanceError('')
-        const balances = await fetchLeaveBalances(EMPLOYEE_ID)
+        const balances = await fetchLeaveBalances(employeeId)
         setLeaveBalances(balances)
       } catch (error) {
         setLeaveBalanceError(
@@ -92,7 +115,7 @@ setEmployee({
     }
 
     loadLeaveBalances()
-  }, [])
+  }, [employeeId])
 
   return (
     <div className="page-content">

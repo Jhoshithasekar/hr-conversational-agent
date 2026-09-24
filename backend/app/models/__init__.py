@@ -6,3 +6,4 @@ from app.models.leave_balance import LeaveBalance
 from app.models.reimbursement_claim import ReimbursementClaim
 from app.models.posh_incident import PoshIncident
 from app.models.audit_log import AuditLog
+from app.models.user_credential import UserCredential
