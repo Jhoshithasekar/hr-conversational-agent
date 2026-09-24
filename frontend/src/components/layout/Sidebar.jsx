@@ -1,5 +1,7 @@
 import { LogOut, MessageCircle, NotebookTabs, ShieldAlert, UserRound } from 'lucide-react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
+
+import { useAuth } from '../../context/AuthContext'
 
 const navigationItems = [
   { label: 'Ask HR', path: '/employee/ask-hr', icon: MessageCircle },
@@ -9,6 +11,14 @@ const navigationItems = [
 ]
 
 function Sidebar({ employee }) {
+  const { logout } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
+
   return (
     <aside className="sidebar" aria-label="Employee navigation">
       <div className="sidebar-brand">
@@ -42,7 +52,7 @@ function Sidebar({ employee }) {
           </div>
           <UserRound aria-hidden="true" size={16} />
         </div>
-        <button className="logout-button" type="button">
+        <button className="logout-button" onClick={handleLogout} type="button">
           <LogOut aria-hidden="true" size={16} />
           <span>Log out</span>
         </button>

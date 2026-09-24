@@ -8,6 +8,7 @@ from app.models import (
     PolicyDocument,
     PoshIncident,
     ReimbursementClaim,
+    UserCredential,
 )
 
 from logging.config import fileConfig
