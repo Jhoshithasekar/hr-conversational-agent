@@ -1,6 +1,7 @@
+import { useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 
-import { employee } from '../../data/mockData'
+import { EMPLOYEE_ID, fetchEmployee } from '../../api/employeeApi'
 import Header from './Header'
 import Sidebar from './Sidebar'
 
@@ -29,14 +30,52 @@ const pageDetails = {
 
 function Layout() {
   const location = useLocation()
+  const [employee, setEmployee] = useState(null)
+  const [employeeState, setEmployeeState] = useState({
+    loading: true,
+    error: null,
+  })
+
+  useEffect(() => {
+    let isCurrent = true
+
+    fetchEmployee(EMPLOYEE_ID)
+      .then((employeeData) => {
+        if (isCurrent) {
+          setEmployee(employeeData)
+          setEmployeeState({ loading: false, error: null })
+        }
+      })
+      .catch((error) => {
+        if (isCurrent) {
+          setEmployeeState({
+            loading: false,
+            error: error.message || 'Unable to load employee profile.',
+          })
+        }
+      })
+
+    return () => {
+      isCurrent = false
+    }
+  }, [])
+
   const details = pageDetails[location.pathname] ?? pageDetails['/employee']
+  const title = location.pathname === '/employee' && employee
+    ? `Good morning, ${employee.name}`
+    : details.title
+  const sidebarEmployee = employee || {
+    name: 'Employee',
+    designation: employeeState.loading ? 'Loading profile...' : 'Profile unavailable',
+    initials: '--',
+  }
 
   return (
     <div className="app-shell">
-      <Sidebar employee={employee} />
+      <Sidebar employee={sidebarEmployee} />
       <main className="main-content">
-        <Header description={details.description} title={details.title} />
-        <Outlet />
+        <Header description={details.description} title={title} />
+        <Outlet context={{ employee, employeeState }} />
       </main>
     </div>
   )
