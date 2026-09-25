@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { LockKeyhole, Paperclip } from 'lucide-react'
 
-import { EMPLOYEE_ID } from '../../api/employeeApi'
+import { useAuth } from '../../context/AuthContext'
 import { submitConcern } from '../../api/grievanceApi'
 
 const initialForm = {
@@ -14,6 +14,8 @@ const initialForm = {
 }
 
 function ReportConcern() {
+  const { user } = useAuth()
+  const employeeId = user?.employee_id
   const [form, setForm] = useState(initialForm)
   const [state, setState] = useState({ submitting: false, error: '', success: false })
 
@@ -38,7 +40,7 @@ function ReportConcern() {
 
     try {
       await submitConcern({
-        complainant_id: form.reportType === 'anonymous' ? null : EMPLOYEE_ID,
+        complainant_id: form.reportType === 'anonymous' ? null : (employeeId || null),
         is_anonymous: form.reportType === 'anonymous',
         respondent_name: form.respondentName.trim(),
         incident_date_period: form.incidentDatePeriod.trim(),

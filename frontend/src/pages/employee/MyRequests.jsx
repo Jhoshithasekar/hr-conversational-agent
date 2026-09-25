@@ -1,17 +1,23 @@
 import { useEffect, useState } from 'react'
 
-import { EMPLOYEE_ID } from '../../api/employeeApi'
+import { useAuth } from '../../context/AuthContext'
 import { fetchEmployeeRequests } from '../../api/requestApi'
 import RequestCard from '../../components/common/RequestCard'
 
 function MyRequests() {
+  const { user } = useAuth()
+  const employeeId = user?.employee_id
   const [requests, setRequests] = useState([])
-  const [state, setState] = useState({ loading: true, error: '' })
+  const [state, setState] = useState({ loading: Boolean(employeeId), error: '' })
 
   useEffect(() => {
+    if (!employeeId) {
+      return
+    }
+
     let isCurrent = true
 
-    fetchEmployeeRequests(EMPLOYEE_ID)
+    fetchEmployeeRequests(employeeId)
       .then((requestData) => {
         if (isCurrent) {
           setRequests(requestData)
@@ -30,7 +36,7 @@ function MyRequests() {
     return () => {
       isCurrent = false
     }
-  }, [])
+  }, [employeeId])
 
   return (
     <div className="page-content narrow-content">
