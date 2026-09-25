@@ -6,26 +6,56 @@ from app.models.user_credential import UserCredential
 from app.core.security import hash_password
 
 
-def seed_neha_employee() -> None:
+DEVELOPMENT_USERS = {
+    "neha.sharma@example.com": "Neha@123",
+    "rajesh.kumar@example.com": "Rajesh@123",
+    "priya.patel@example.com": "Priya@123",
+    "amit.singh@example.com": "Amit@123",
+}
+
+
+def seed_credentials() -> None:
     db: Session = SessionLocal()
+
     try:
-        employee = db.query(Employee).filter(Employee.email == "neha.sharma@example.com").first()
-        if not employee:
-            print("No employee record found for Neha Sharma. Create the employee first.")
-            return
+        for email, password in DEVELOPMENT_USERS.items():
 
-        credential = db.query(UserCredential).filter(UserCredential.employee_id == employee.id).first()
-        if credential is None:
-            credential = UserCredential(employee_id=employee.id)
-            db.add(credential)
+            employee = (
+                db.query(Employee)
+                .filter(Employee.email == email)
+                .first()
+            )
 
-        credential.password_hash = hash_password("Neha@123")
-        credential.is_active = True
+            if not employee:
+                print(f"Employee not found: {email}")
+                continue
+
+            credential = (
+                db.query(UserCredential)
+                .filter(UserCredential.employee_id == employee.id)
+                .first()
+            )
+
+            if credential is None:
+                credential = UserCredential(
+                    employee_id=employee.id
+                )
+                db.add(credential)
+
+            credential.password_hash = hash_password(password)
+            credential.is_active = True
+
+            print(
+                f"Credential ready for "
+                f"{employee.name} ({employee.email})"
+            )
+
         db.commit()
-        print(f"Created auth credential for {employee.name} ({employee.email}).")
+        print("\nDevelopment credentials created successfully.")
+
     finally:
         db.close()
 
 
 if __name__ == "__main__":
-    seed_neha_employee()
+    seed_credentials()

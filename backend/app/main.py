@@ -10,6 +10,7 @@ from app.api.leave_balances import router as leave_balance_router
 from app.api.reimbursement_claims import router as reimbursement_router
 from app.api.posh_incidents import router as posh_router
 from app.api.audit_logs import router as audit_router
+from app.api.manager import router as manager_router
 
 
 app = FastAPI(
@@ -37,6 +38,7 @@ app.include_router(leave_balance_router)
 app.include_router(reimbursement_router)
 app.include_router(posh_router)
 app.include_router(audit_router)
+app.include_router(manager_router)
 
 
 @app.get("/")

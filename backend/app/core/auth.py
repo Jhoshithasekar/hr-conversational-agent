@@ -51,3 +51,16 @@ def get_current_employee(
 
 def get_current_user(employee: Employee = Depends(get_current_employee)) -> Employee:
     return employee
+
+
+def require_manager_role(
+    current_user: Employee = Depends(get_current_employee),
+) -> Employee:
+    role_norm = (current_user.role or "").strip().lower()
+    if role_norm not in ["manager", "hr"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Manager or HR access required",
+        )
+    return current_user
+
