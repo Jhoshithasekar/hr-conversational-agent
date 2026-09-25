@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
-import { getCurrentUser } from '../api/authApi'
+import { getCurrentUser, login as loginUser } from '../api/authApi'
 
 const AuthContext = createContext(null)
 
@@ -64,7 +64,6 @@ function AuthProvider({ children }) {
   }, [token])
 
   const login = async (email, password) => {
-    const { login: loginUser } = await import('../api/authApi')
     const response = await loginUser(email, password)
 
     const nextToken = response.access_token
@@ -112,4 +111,4 @@ function useAuth() {
   return context
 }
 
-export { AuthProvider, useAuth }
+export { AuthContext, AuthProvider, useAuth }
