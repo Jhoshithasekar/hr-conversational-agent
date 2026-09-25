@@ -9,12 +9,13 @@ import {
   FileText,
   MessageSquare,
   ShieldCheck,
-  User,
   XCircle,
 } from 'lucide-react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 
 import StatusBadge from '../../components/common/StatusBadge'
+import LoadingState from '../../components/common/LoadingState'
+import ErrorState from '../../components/common/ErrorState'
 import {
   approveRequest,
   fetchManagerRequestDetail,
@@ -28,9 +29,8 @@ function formatDateRange(startDate, endDate) {
   return start === end ? start : `${start} - ${end}`
 }
 
-function ManagerRequestDetail({ requestId: propRequestId, onActionSuccess, isModal = false, onClose }) {
+function ManagerRequestDetail({ requestId: propRequestId, onActionSuccess, isModal = false }) {
   const params = useParams()
-  const navigate = useNavigate()
   const activeId = propRequestId || params.id
 
   const [detail, setDetail] = useState(null)
@@ -40,20 +40,35 @@ function ManagerRequestDetail({ requestId: propRequestId, onActionSuccess, isMod
   const [submitting, setSubmitting] = useState(false)
   const [actionFeedback, setActionFeedback] = useState(null)
 
+  async function loadDetail() {
+    try {
+      setLoading(true)
+      setError('')
+      setActionFeedback(null)
+      const data = await fetchManagerRequestDetail(activeId)
+      setDetail(data)
+      if (data?.manager_comment) {
+        setComment(data.manager_comment)
+      }
+    } catch (err) {
+      setError(err.message || 'Unable to load request details.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (!activeId) return
-
     let isCurrent = true
 
-    async function loadDetail() {
+    async function initialLoad() {
       try {
-        setLoading(true)
         setError('')
         setActionFeedback(null)
         const data = await fetchManagerRequestDetail(activeId)
         if (isCurrent) {
           setDetail(data)
-          if (data.manager_comment) {
+          if (data?.manager_comment) {
             setComment(data.manager_comment)
           }
         }
@@ -68,7 +83,7 @@ function ManagerRequestDetail({ requestId: propRequestId, onActionSuccess, isMod
       }
     }
 
-    loadDetail()
+    initialLoad()
 
     return () => {
       isCurrent = false
@@ -115,7 +130,7 @@ function ManagerRequestDetail({ requestId: propRequestId, onActionSuccess, isMod
   if (loading) {
     return (
       <div className={isModal ? 'modal-detail-loading' : 'page-content narrow-content'}>
-        <p className="state-message">Loading request details...</p>
+        <LoadingState message="Loading request details..." />
       </div>
     )
   }
@@ -123,13 +138,10 @@ function ManagerRequestDetail({ requestId: propRequestId, onActionSuccess, isMod
   if (error) {
     return (
       <div className={isModal ? 'modal-detail-error' : 'page-content narrow-content'}>
-        <div className="form-alert form-alert-error" role="alert">
-          <AlertCircle size={16} />
-          <span>{error}</span>
-        </div>
+        <ErrorState message={error} onRetry={loadDetail} retryLabel="Reload Request" />
         {!isModal && (
-          <Link className="text-link" style={{ marginTop: '16px' }} to="/manager/requests">
-            <ArrowLeft size={16} /> Back to team requests
+          <Link className="text-link" style={{ marginTop: '16px', display: 'inline-flex' }} to="/manager/requests">
+            <ArrowLeft size={15} style={{ marginRight: '6px' }} /> Back to team requests
           </Link>
         )}
       </div>
@@ -138,7 +150,7 @@ function ManagerRequestDetail({ requestId: propRequestId, onActionSuccess, isMod
 
   if (!detail) return null
 
-  const isPending = detail.status.toLowerCase() === 'pending'
+  const isPending = (detail.status || '').toLowerCase() === 'pending'
   const { employee, leave_balance: leaveBalance, overlapping_requests: overlaps = [], policy_guidance: policies = [] } = detail
 
   return (
@@ -157,9 +169,9 @@ function ManagerRequestDetail({ requestId: propRequestId, onActionSuccess, isMod
           role="status"
           style={{
             marginBottom: '16px',
-            background: actionFeedback.type === 'success' ? '#e5f2ec' : '#f8e4e1',
-            color: actionFeedback.type === 'success' ? '#27704d' : '#8c4139',
-            border: `1px solid ${actionFeedback.type === 'success' ? '#c7e6d7' : '#f1c7be'}`,
+            background: actionFeedback.type === 'success' ? '#e8f3ef' : '#f8e4e1',
+            color: actionFeedback.type === 'success' ? '#2d6a4f' : '#8c4139',
+            border: `1px solid ${actionFeedback.type === 'success' ? '#c2e0d3' : '#f1c7be'}`,
           }}
         >
           {actionFeedback.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
@@ -167,12 +179,20 @@ function ManagerRequestDetail({ requestId: propRequestId, onActionSuccess, isMod
         </div>
       )}
 
-      <div className="panel" style={{ display: 'grid', gap: '22px' }}>
+      <div className="panel" style={{ display: 'grid', gap: '20px' }}>
         {/* Header Block */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #edf1ef', paddingBottom: '18px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            borderBottom: '1px solid #edf1ef',
+            paddingBottom: '16px',
+          }}
+        >
           <div>
             <span className="eyebrow" style={{ display: 'block' }}>Request #{detail.id}</span>
-            <h2 style={{ margin: '4px 0 0', fontFamily: 'Manrope, sans-serif' }}>
+            <h2 style={{ margin: '4px 0 0', fontFamily: 'Manrope, sans-serif', fontSize: '1.25rem' }}>
               {detail.request_type}
             </h2>
           </div>
@@ -185,45 +205,94 @@ function ManagerRequestDetail({ requestId: propRequestId, onActionSuccess, isMod
         </div>
 
         {/* Employee Info Block */}
-        <div style={{ background: '#f8faf9', border: '1px solid #dfe6e2', borderRadius: '8px', padding: '14px 16px', display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <div className="avatar avatar-large" style={{ width: '48px', height: '48px', fontSize: '0.95rem' }}>
-            {employee.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+        {employee && (
+          <div
+            style={{
+              background: '#f8faf9',
+              border: '1px solid #dfe6e2',
+              borderRadius: '8px',
+              padding: '14px 16px',
+              display: 'flex',
+              gap: '14px',
+              alignItems: 'center',
+            }}
+          >
+            <div className="avatar avatar-large" style={{ width: '44px', height: '44px', fontSize: '0.9rem' }}>
+              {employee.name
+                ? employee.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+                : '--'}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <strong style={{ display: 'block', fontSize: '0.92rem', color: '#1d2935' }}>
+                {employee.name}
+              </strong>
+              <span style={{ color: '#687789', fontSize: '0.78rem' }}>
+                {employee.role} • {employee.department_name}
+              </span>
+            </div>
+            <div style={{ color: '#87949d', fontSize: '0.76rem' }}>
+              {employee.email}
+            </div>
           </div>
-          <div style={{ flex: 1 }}>
-            <strong style={{ display: 'block', fontSize: '0.95rem', color: '#1d2935' }}>{employee.name}</strong>
-            <span style={{ color: '#687789', fontSize: '0.8rem' }}>{employee.role} • {employee.department_name}</span>
-          </div>
-          <div style={{ color: '#87949d', fontSize: '0.78rem' }}>
-            {employee.email}
-          </div>
-        </div>
+        )}
 
         {/* Request Details Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
           <div style={{ background: '#fff', border: '1px solid #dfe6e2', borderRadius: '8px', padding: '12px 14px' }}>
-            <span style={{ color: '#8fa0aa', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <Calendar size={13} /> Dates
+            <span
+              style={{
+                color: '#8fa0aa',
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
+              <Calendar size={13} /> Dates Requested
             </span>
-            <strong style={{ display: 'block', marginTop: '6px', fontSize: '0.88rem', color: '#1d2935' }}>
+            <strong style={{ display: 'block', marginTop: '6px', fontSize: '0.86rem', color: '#1d2935' }}>
               {formatDateRange(detail.start_date, detail.end_date)}
             </strong>
           </div>
 
           <div style={{ background: '#fff', border: '1px solid #dfe6e2', borderRadius: '8px', padding: '12px 14px' }}>
-            <span style={{ color: '#8fa0aa', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span
+              style={{
+                color: '#8fa0aa',
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
               <Clock size={13} /> Total Duration
             </span>
-            <strong style={{ display: 'block', marginTop: '6px', fontSize: '0.88rem', color: '#1d2935' }}>
-              {detail.total_days} Day{detail.total_days !== 1 ? 's' : ''} {detail.half_full_day ? `(${detail.half_full_day})` : ''}
+            <strong style={{ display: 'block', marginTop: '6px', fontSize: '0.86rem', color: '#1d2935' }}>
+              {detail.total_days} Day{detail.total_days !== 1 ? 's' : ''}{' '}
+              {detail.half_full_day ? `(${detail.half_full_day})` : ''}
             </strong>
           </div>
 
           {leaveBalance && (
             <div style={{ background: '#fff', border: '1px solid #dfe6e2', borderRadius: '8px', padding: '12px 14px' }}>
-              <span style={{ color: '#8fa0aa', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span
+                style={{
+                  color: '#8fa0aa',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                }}
+              >
                 <ShieldCheck size={13} /> {leaveBalance.leave_type} Balance
               </span>
-              <strong style={{ display: 'block', marginTop: '6px', fontSize: '0.88rem', color: '#1d2935' }}>
+              <strong style={{ display: 'block', marginTop: '6px', fontSize: '0.86rem', color: '#1d2935' }}>
                 {leaveBalance.remaining_days} days remaining
               </strong>
               <small style={{ color: '#87949d', fontSize: '0.72rem' }}>
@@ -235,10 +304,28 @@ function ManagerRequestDetail({ requestId: propRequestId, onActionSuccess, isMod
 
         {/* Reason Block */}
         <div>
-          <span style={{ color: '#8fa0aa', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <span
+            style={{
+              color: '#8fa0aa',
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
             Reason for request
           </span>
-          <p style={{ background: '#f8faf9', border: '1px solid #edf1ef', borderRadius: '8px', padding: '12px 14px', margin: '6px 0 0', fontSize: '0.86rem', lineHeight: '1.5' }}>
+          <p
+            style={{
+              background: '#f8faf9',
+              border: '1px solid #edf1ef',
+              borderRadius: '8px',
+              padding: '12px 14px',
+              margin: '6px 0 0',
+              fontSize: '0.84rem',
+              lineHeight: '1.5',
+            }}
+          >
             {detail.reason}
           </p>
         </div>
@@ -259,18 +346,32 @@ function ManagerRequestDetail({ requestId: propRequestId, onActionSuccess, isMod
               <strong style={{ fontSize: '0.86rem' }}>Schedule overlap detected in your team</strong>
             </div>
             <p style={{ margin: '0 0 10px', fontSize: '0.78rem' }}>
-              The following team member{overlaps.length > 1 ? 's have' : ' has'} overlapping approved or pending requests during this timeframe:
+              The following team member{overlaps.length > 1 ? 's have' : ' has'} overlapping approved or pending requests
+              during this timeframe:
             </p>
             <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '0.78rem' }}>
               {overlaps.map((o) => (
                 <li key={o.request_id} style={{ marginBottom: '4px' }}>
-                  <strong>{o.employee_name}</strong>: {o.request_type} ({formatDateRange(o.start_date, o.end_date)}) — <em>{o.status}</em>
+                  <strong>{o.employee_name}</strong>: {o.request_type} ({formatDateRange(o.start_date, o.end_date)}) —{' '}
+                  <em>{o.status}</em>
                 </li>
               ))}
             </ul>
           </div>
         ) : (
-          <div style={{ background: '#f1f7f4', border: '1px solid #d4e8de', borderRadius: '8px', padding: '10px 14px', color: '#27704d', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div
+            style={{
+              background: '#f1f7f4',
+              border: '1px solid #d4e8de',
+              borderRadius: '8px',
+              padding: '10px 14px',
+              color: '#27704d',
+              fontSize: '0.78rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
             <CheckCircle2 size={16} />
             <span>No overlapping requests found in your team for this time period.</span>
           </div>
@@ -278,8 +379,26 @@ function ManagerRequestDetail({ requestId: propRequestId, onActionSuccess, isMod
 
         {/* Policy Guidance */}
         {policies.length > 0 && (
-          <div style={{ background: '#fcfdfd', border: '1px solid #dfe6e2', borderRadius: '8px', padding: '12px 14px' }}>
-            <span style={{ color: '#8fa0aa', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <div
+            style={{
+              background: '#fcfdfd',
+              border: '1px solid #dfe6e2',
+              borderRadius: '8px',
+              padding: '12px 14px',
+            }}
+          >
+            <span
+              style={{
+                color: '#8fa0aa',
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
               <FileText size={13} /> Policy guidelines
             </span>
             <div style={{ marginTop: '8px', fontSize: '0.78rem', color: '#52626d' }}>
@@ -294,7 +413,16 @@ function ManagerRequestDetail({ requestId: propRequestId, onActionSuccess, isMod
 
         {/* Manager Comment Field & Action Buttons */}
         <div style={{ borderTop: '1px solid #edf1ef', paddingTop: '18px' }}>
-          <label htmlFor="manager-comment" style={{ display: 'block', marginBottom: '6px', fontSize: '0.78rem', fontWeight: 600, color: '#52626d' }}>
+          <label
+            htmlFor="manager-comment"
+            style={{
+              display: 'block',
+              marginBottom: '6px',
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              color: '#52626d',
+            }}
+          >
             <MessageSquare size={14} style={{ display: 'inline', verticalAlign: '-2px', marginRight: '5px' }} />
             Manager comments {isPending ? '(optional for approval, recommended for rejection)' : ''}
           </label>
@@ -302,7 +430,11 @@ function ManagerRequestDetail({ requestId: propRequestId, onActionSuccess, isMod
             disabled={!isPending || submitting}
             id="manager-comment"
             onChange={(e) => setComment(e.target.value)}
-            placeholder={isPending ? 'Add a note to the employee explaining your decision...' : 'No comment was provided.'}
+            placeholder={
+              isPending
+                ? 'Add a note to the employee explaining your decision...'
+                : 'No comment was provided.'
+            }
             rows={3}
             style={{
               width: '100%',
@@ -348,12 +480,29 @@ function ManagerRequestDetail({ requestId: propRequestId, onActionSuccess, isMod
         {/* Audit Trail */}
         {detail.audit_trail && detail.audit_trail.length > 0 && (
           <div style={{ borderTop: '1px solid #edf1ef', paddingTop: '16px' }}>
-            <span style={{ color: '#8fa0aa', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <span
+              style={{
+                color: '#8fa0aa',
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+            >
               Audit History
             </span>
             <div style={{ marginTop: '8px', display: 'grid', gap: '6px' }}>
               {detail.audit_trail.map((item) => (
-                <div key={item.id} style={{ fontSize: '0.75rem', color: '#687789', background: '#f8faf9', padding: '6px 10px', borderRadius: '5px' }}>
+                <div
+                  key={item.id}
+                  style={{
+                    fontSize: '0.75rem',
+                    color: '#687789',
+                    background: '#f8faf9',
+                    padding: '8px 12px',
+                    borderRadius: '5px',
+                  }}
+                >
                   <strong>{item.actor_name}</strong> performed <code>{item.action}</code> ({item.approver_action || item.status}) on{' '}
                   {new Date(item.timestamp).toLocaleString()}
                   {item.comment ? ` - "${item.comment}"` : ''}
@@ -368,4 +517,3 @@ function ManagerRequestDetail({ requestId: propRequestId, onActionSuccess, isMod
 }
 
 export default ManagerRequestDetail
-

@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
-import {
-  AlertCircle,
-  Clock,
-  Search,
-  X,
-} from 'lucide-react'
+import { X } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 
 import StatusBadge from '../../components/common/StatusBadge'
+import FilterBar from '../../components/common/FilterBar'
+import LoadingState from '../../components/common/LoadingState'
+import ErrorState from '../../components/common/ErrorState'
+import EmptyState from '../../components/common/EmptyState'
 import { fetchManagerRequests } from '../../api/managerApi'
 import ManagerRequestDetail from './ManagerRequestDetail'
 
@@ -31,7 +30,7 @@ function ManagerRequests() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // State for inline drawer/modal detail review
+  // State for inline modal detail review
   const [selectedRequestId, setSelectedRequestId] = useState(null)
 
   const loadRequests = async () => {
@@ -52,7 +51,35 @@ function ManagerRequests() {
   }
 
   useEffect(() => {
-    loadRequests()
+    let isCurrent = true
+
+    async function fetchRequests() {
+      try {
+        setError('')
+        const data = await fetchManagerRequests({
+          status: statusFilter,
+          requestType: typeFilter,
+          search: searchQuery,
+        })
+        if (isCurrent) {
+          setRequests(data)
+        }
+      } catch (err) {
+        if (isCurrent) {
+          setError(err.message || 'Unable to load team requests.')
+        }
+      } finally {
+        if (isCurrent) {
+          setLoading(false)
+        }
+      }
+    }
+
+    fetchRequests()
+
+    return () => {
+      isCurrent = false
+    }
   }, [statusFilter, typeFilter, searchQuery])
 
   const handleStatusChange = (status) => {
@@ -98,94 +125,36 @@ function ManagerRequests() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="panel" style={{ padding: '16px 18px', marginBottom: '22px' }}>
-        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
-          {/* Status Tabs */}
-          <div style={{ display: 'flex', gap: '6px', background: '#edf1ef', padding: '4px', borderRadius: '8px' }}>
-            {statusTabs.map((tab) => {
-              const active = statusFilter.toLowerCase() === tab.value.toLowerCase()
-              return (
-                <button
-                  key={tab.value}
-                  onClick={() => handleStatusChange(tab.value)}
-                  style={{
-                    background: active ? '#fff' : 'transparent',
-                    color: active ? '#1d2935' : '#687789',
-                    border: 0,
-                    borderRadius: '6px',
-                    padding: '6px 12px',
-                    fontSize: '0.78rem',
-                    fontWeight: active ? 700 : 500,
-                    boxShadow: active ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
-                    cursor: 'pointer',
-                  }}
-                  type="button"
-                >
-                  {tab.label}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Request Type Select */}
-          <div style={{ minWidth: '160px' }}>
-            <select
-              aria-label="Filter by request type"
-              onChange={(e) => setTypeFilter(e.target.value)}
-              style={{
-                height: '38px',
-                border: '1px solid #cfdad5',
-                borderRadius: '7px',
-                padding: '0 10px',
-                fontSize: '0.8rem',
-                color: '#1d2935',
-                background: '#fff',
-                width: '100%',
-              }}
-              value={typeFilter}
-            >
-              {requestTypes.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Search Field */}
-          <div className="search-field" style={{ flex: 1, minWidth: '220px' }}>
-            <Search aria-hidden="true" size={17} />
-            <input
-              aria-label="Search by employee or reason"
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by employee name or reason..."
-              type="search"
-              value={searchQuery}
-            />
-          </div>
-        </div>
-      </div>
+      <FilterBar
+        activeTab={statusFilter}
+        onSearchChange={setSearchQuery}
+        onSelectChange={setTypeFilter}
+        onTabChange={handleStatusChange}
+        searchPlaceholder="Search by employee name or reason..."
+        searchValue={searchQuery}
+        selectLabel="Filter by request type"
+        selectOptions={requestTypes}
+        selectValue={typeFilter}
+        tabs={statusTabs}
+      />
 
       {/* Content Section */}
-      {loading && <p className="state-message">Loading requests...</p>}
+      {loading && <LoadingState message="Loading team requests..." />}
 
       {!loading && error && (
-        <div className="form-alert form-alert-error" role="alert">
-          <AlertCircle size={16} />
-          <span>{error}</span>
-        </div>
+        <ErrorState message={error} onRetry={loadRequests} retryLabel="Reload Requests" />
       )}
 
       {!loading && !error && requests.length === 0 && (
-        <div className="panel" style={{ textAlign: 'center', padding: '48px 20px' }}>
-          <Clock size={34} style={{ color: '#8fa0aa', margin: '0 auto 12px' }} />
-          <h3>No team requests found</h3>
-          <p className="state-message">
-            {searchQuery || statusFilter !== 'all' || typeFilter !== 'all'
-              ? 'No requests match your current filters. Try adjusting your search or filters.'
-              : 'Your direct reports have not submitted any requests yet.'}
-          </p>
-        </div>
+        <EmptyState
+          description={
+            searchQuery || statusFilter !== 'all' || typeFilter !== 'all'
+              ? 'No requests match your current filters. Try adjusting your search query or status filter.'
+              : 'Your direct reports have not submitted any requests yet.'
+          }
+          icon="clock"
+          title="No team requests found"
+        />
       )}
 
       {!loading && !error && requests.length > 0 && (
@@ -199,7 +168,9 @@ function ManagerRequests() {
               <div className="request-details" style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <strong style={{ fontSize: '0.88rem' }}>{request.employee_name}</strong>
-                  <span style={{ fontSize: '0.74rem', color: '#87949d' }}>({request.employee_role} • {request.department_name})</span>
+                  <span style={{ fontSize: '0.74rem', color: '#87949d' }}>
+                    ({request.employee_role} • {request.department_name})
+                  </span>
                 </div>
                 <div style={{ fontSize: '0.78rem', color: '#52626d', marginTop: '2px' }}>
                   <strong>{request.request_type}</strong> — &quot;{request.reason}&quot;
@@ -216,7 +187,8 @@ function ManagerRequests() {
                   {formatDateRange(request.start_date, request.end_date)}
                 </div>
                 <div style={{ fontSize: '0.72rem', color: '#87949d', marginTop: '2px' }}>
-                  {request.total_days} Day{request.total_days !== 1 ? 's' : ''} {request.half_full_day ? `(${request.half_full_day})` : ''}
+                  {request.total_days} Day{request.total_days !== 1 ? 's' : ''}{' '}
+                  {request.half_full_day ? `(${request.half_full_day})` : ''}
                 </div>
               </div>
 
@@ -229,9 +201,9 @@ function ManagerRequests() {
                 style={{
                   height: '36px',
                   minHeight: '36px',
-                  padding: '0 12px',
+                  padding: '0 14px',
                   marginLeft: '12px',
-                  fontSize: '0.76rem',
+                  fontSize: '0.78rem',
                 }}
                 type="button"
               >

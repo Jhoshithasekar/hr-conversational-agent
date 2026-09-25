@@ -1,48 +1,41 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
 import { getCurrentUser, login as loginUser } from '../api/authApi'
+import { AUTH_STATUS } from '../utils/workspaceRouting'
 
 const AuthContext = createContext(null)
 
 const STORAGE_KEY = 'hr_auth_token'
 
+export { AUTH_STATUS }
+
 function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem(STORAGE_KEY) || '')
   const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(Boolean(token))
+  const [loading, setLoading] = useState(Boolean(localStorage.getItem(STORAGE_KEY)))
   const [error, setError] = useState(null)
 
+  // Validate session on initial application load
   useEffect(() => {
-    if (!token) {
-      setUser(null)
-      setLoading(false)
-      setError(null)
+    const savedToken = localStorage.getItem(STORAGE_KEY)
+    if (!savedToken) {
       return
     }
 
     let isCurrent = true
 
-    getCurrentUser(token)
+    getCurrentUser(savedToken)
       .then((currentUser) => {
-        if (!isCurrent) {
-          return
-        }
-
-        setUser({
-          ...currentUser,
-          authenticationStatus: 'authenticated',
-        })
+        if (!isCurrent) return
+        setUser(currentUser)
         setError(null)
       })
-      .catch(() => {
-        if (!isCurrent) {
-          return
-        }
-
-        setUser(null)
-        setToken('')
+      .catch((err) => {
+        if (!isCurrent) return
         localStorage.removeItem(STORAGE_KEY)
-        setError('Your session has expired. Please log in again.')
+        setToken('')
+        setUser(null)
+        setError(err.message || 'Your session has expired. Please log in again.')
       })
       .finally(() => {
         if (isCurrent) {
@@ -53,50 +46,53 @@ function AuthProvider({ children }) {
     return () => {
       isCurrent = false
     }
-  }, [token])
-
-  useEffect(() => {
-    if (token) {
-      localStorage.setItem(STORAGE_KEY, token)
-    } else {
-      localStorage.removeItem(STORAGE_KEY)
-    }
-  }, [token])
+  }, [])
 
   const login = async (email, password) => {
     const response = await loginUser(email, password)
-
     const nextToken = response.access_token
+
+    // Synchronously write to localStorage before any component triggers API requests
+    localStorage.setItem(STORAGE_KEY, nextToken)
+
     setToken(nextToken)
     setUser({
       employee_id: response.employee_id,
       name: response.name,
       email: response.email,
       role: response.role,
-      authenticationStatus: 'authenticated',
     })
+    setLoading(false)
     setError(null)
 
     return response
   }
 
   const logout = () => {
+    localStorage.removeItem(STORAGE_KEY)
     setToken('')
     setUser(null)
     setError(null)
-    localStorage.removeItem(STORAGE_KEY)
+    setLoading(false)
   }
+
+  const authStatus = loading
+    ? AUTH_STATUS.INITIALIZING
+    : user && token
+    ? AUTH_STATUS.AUTHENTICATED
+    : AUTH_STATUS.UNAUTHENTICATED
 
   const value = useMemo(() => ({
     user,
     token,
     loading,
     error,
-    isAuthenticated: Boolean(user && token),
+    authStatus,
+    isAuthenticated: authStatus === AUTH_STATUS.AUTHENTICATED,
     login,
     logout,
     setUser,
-  }), [user, token, loading, error])
+  }), [user, token, loading, error, authStatus])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 
 import { fetchEmployee } from '../../api/employeeApi'
 import { useAuth } from '../../context/AuthContext'
+import ErrorBoundary from '../common/ErrorBoundary'
 import Header from './Header'
 import Sidebar from './Sidebar'
 
@@ -47,6 +48,46 @@ const pageDetails = {
     title: 'Team Requests',
     description: 'Review and manage time off and work arrangements for your team.',
   },
+  '/hr': {
+    eyebrow: 'HR Workspace',
+    title: 'HR Dashboard',
+    description: 'Overview of HR requests, workforce operations, and active policies.',
+  },
+  '/hr/requests': {
+    eyebrow: 'HR Workspace',
+    title: 'Requests & Approvals',
+    description: 'Review, evaluate, and manage employee leave and workplace arrangement requests.',
+  },
+  '/hr/knowledge-base': {
+    eyebrow: 'HR Workspace',
+    title: 'Knowledge Base',
+    description: 'Manage corporate HR policy documentation, revisions, and compliance guidelines.',
+  },
+  '/hr/analytics': {
+    eyebrow: 'HR Workspace',
+    title: 'Analytics & Reports',
+    description: 'Inquiry trends, resolution metrics, and employee knowledge gap insights.',
+  },
+  '/hr/audit-log': {
+    eyebrow: 'HR Workspace',
+    title: 'Audit Log',
+    description: 'System-wide administrative activity trail and policy version changes.',
+  },
+  '/hr/users': {
+    eyebrow: 'HR Workspace',
+    title: 'Users & Roles',
+    description: 'Workforce directory, organizational roles, and system permission governance.',
+  },
+  '/icc': {
+    eyebrow: 'ICC Workspace',
+    title: 'ICC Dashboard',
+    description: 'Confidential Internal Complaints Committee case tracking and statutory compliance.',
+  },
+  '/icc/cases': {
+    eyebrow: 'ICC Workspace',
+    title: 'ICC Cases',
+    description: 'Manage confidential inquiry proceedings, hearings, and statutory reports.',
+  },
 }
 
 function Layout() {
@@ -55,14 +96,12 @@ function Layout() {
   const employeeId = user?.employee_id
   const [employee, setEmployee] = useState(null)
   const [employeeState, setEmployeeState] = useState({
-    loading: true,
+    loading: Boolean(employeeId),
     error: null,
   })
 
   useEffect(() => {
     if (!employeeId) {
-      setEmployee(null)
-      setEmployeeState({ loading: false, error: null })
       return
     }
 
@@ -97,8 +136,18 @@ function Layout() {
         title: 'Request Details',
         description: 'Review employee request information, balance, and take action.',
       }
+    } else if (location.pathname.startsWith('/icc/cases/')) {
+      details = {
+        eyebrow: 'ICC Workspace',
+        title: 'Case Investigation Detail',
+        description: 'Confidential inquiry docket, milestone tracker, and committee notes.',
+      }
     } else if (location.pathname.startsWith('/manager')) {
       details = pageDetails['/manager']
+    } else if (location.pathname.startsWith('/hr')) {
+      details = pageDetails['/hr']
+    } else if (location.pathname.startsWith('/icc')) {
+      details = pageDetails['/icc']
     } else {
       details = pageDetails['/employee']
     }
@@ -113,19 +162,32 @@ function Layout() {
   }
 
   const greeting = getGreeting()
-  const isManagerWorkspace = location.pathname.startsWith('/manager')
   const isEmployeeDashboard = location.pathname === '/employee'
+  const isHrDashboard = location.pathname === '/hr'
+  const isIccDashboard = location.pathname === '/icc'
 
-  const title = isEmployeeDashboard && employee
-    ? `${greeting}, ${employee.name}`
-    : details.title
+  const displayName = user?.name || employee?.name || 'User'
+
+  let title = details.title
+  if (isEmployeeDashboard) {
+    title = `${greeting}, ${displayName}`
+  } else if (isHrDashboard) {
+    title = `${greeting}, ${displayName}`
+  } else if (isIccDashboard) {
+    title = `${greeting}, ${displayName}`
+  }
 
   const sidebarEmployee = employee || {
-    name: user?.name || 'Employee',
-    designation: employeeState.loading ? 'Loading profile...' : (user?.role || 'Profile unavailable'),
+    name: user?.name || 'User',
+    designation: employeeState.loading ? 'Loading profile...' : (user?.role || 'Staff'),
     initials: user?.name
-      ? user.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
-      : '--',
+      ? user.name
+          .split(' ')
+          .map((n) => n[0])
+          .join('')
+          .slice(0, 2)
+          .toUpperCase()
+      : 'U',
   }
 
   return (
@@ -134,13 +196,16 @@ function Layout() {
       <main className="main-content">
         <Header
           description={details.description}
-          eyebrow={details.eyebrow || (isManagerWorkspace ? 'Manager workspace' : 'Employee workspace')}
+          eyebrow={details.eyebrow}
           title={title}
         />
-        <Outlet context={{ employee, employeeState }} />
+        <ErrorBoundary>
+          <Outlet context={{ employee, employeeState }} />
+        </ErrorBoundary>
       </main>
     </div>
   )
 }
 
 export default Layout
+

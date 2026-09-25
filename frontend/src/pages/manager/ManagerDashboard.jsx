@@ -9,6 +9,10 @@ import {
 import { Link } from 'react-router-dom'
 
 import StatusBadge from '../../components/common/StatusBadge'
+import StatCard from '../../components/common/StatCard'
+import LoadingState from '../../components/common/LoadingState'
+import ErrorState from '../../components/common/ErrorState'
+import EmptyState from '../../components/common/EmptyState'
 import { fetchManagerDashboard } from '../../api/managerApi'
 
 function formatDateRange(startDate, endDate) {
@@ -23,12 +27,24 @@ function ManagerDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  async function loadDashboard() {
+    try {
+      setLoading(true)
+      setError('')
+      const data = await fetchManagerDashboard()
+      setDashboardData(data)
+    } catch (err) {
+      setError(err.message || 'Unable to load manager dashboard.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     let isCurrent = true
 
-    async function loadDashboard() {
+    async function initialLoad() {
       try {
-        setLoading(true)
         setError('')
         const data = await fetchManagerDashboard()
         if (isCurrent) {
@@ -45,7 +61,7 @@ function ManagerDashboard() {
       }
     }
 
-    loadDashboard()
+    initialLoad()
 
     return () => {
       isCurrent = false
@@ -55,7 +71,7 @@ function ManagerDashboard() {
   if (loading) {
     return (
       <div className="page-content">
-        <p className="state-message">Loading manager workspace data...</p>
+        <LoadingState message="Loading manager workspace data..." />
       </div>
     )
   }
@@ -63,10 +79,7 @@ function ManagerDashboard() {
   if (error) {
     return (
       <div className="page-content">
-        <div className="form-alert form-alert-error" role="alert">
-          <AlertCircle size={16} />
-          <span>{error}</span>
-        </div>
+        <ErrorState message={error} onRetry={loadDashboard} retryLabel="Reload Dashboard" />
       </div>
     )
   }
@@ -92,65 +105,70 @@ function ManagerDashboard() {
         </div>
 
         <div className="stat-grid">
-          <article className="stat-card teal">
-            <div className="stat-card-topline">
-              <span className="stat-label">Direct Reports</span>
-              <Users aria-hidden="true" size={18} />
-            </div>
-            <div className="stat-value-row">
-              <strong>{teamCount}</strong>
-              <span>employees</span>
-            </div>
-            <div className="stat-footnote">
-              <Link className="text-link" to="/manager/team">
-                View team directory <ArrowRight size={14} />
-              </Link>
-            </div>
-          </article>
+          <StatCard
+            icon={Users}
+            label="Direct Reports"
+            linkLabel="View team directory"
+            linkTo="/manager/team"
+            subtext="employees"
+            tone="teal"
+            value={teamCount}
+          />
 
-          <article className="stat-card coral">
-            <div className="stat-card-topline">
-              <span className="stat-label">Pending Requests</span>
-              <Clock aria-hidden="true" size={18} />
-            </div>
-            <div className="stat-value-row">
-              <strong>{pendingCount}</strong>
-              <span>awaiting review</span>
-            </div>
-            <div className="stat-footnote">
-              <Link className="text-link" to="/manager/requests?status=Pending">
-                Review pending items <ArrowRight size={14} />
-              </Link>
-            </div>
-          </article>
+          <StatCard
+            icon={Clock}
+            label="Pending Requests"
+            linkLabel="Review pending items"
+            linkTo="/manager/requests?status=Pending"
+            subtext="awaiting review"
+            tone="coral"
+            value={pendingCount}
+          />
 
-          <article className="stat-card gold">
-            <div className="stat-card-topline">
-              <span className="stat-label">Out / WFH Today</span>
-              <CalendarDays aria-hidden="true" size={18} />
-            </div>
-            <div className="stat-value-row">
-              <strong>{leaveTodayCount}</strong>
-              <span>team members</span>
-            </div>
-            <div className="stat-footnote">
-              <span>{leaveTodayCount > 0 ? 'Approved arrangements active today' : 'All team members on regular schedule'}</span>
-            </div>
-          </article>
+          <StatCard
+            footnote={
+              leaveTodayCount > 0
+                ? 'Approved arrangements active today'
+                : 'All team members on regular schedule'
+            }
+            icon={CalendarDays}
+            label="Out / WFH Today"
+            subtext="team members"
+            tone="gold"
+            value={leaveTodayCount}
+          />
         </div>
       </section>
 
       {/* Action Required Banner if pending requests exist */}
       {actionCount > 0 && (
-        <section className="confidential-banner" style={{ background: '#fdf7ea', borderColor: '#f1e2be', color: '#825619' }}>
-          <AlertCircle aria-hidden="true" size={20} />
+        <section
+          className="confidential-banner"
+          style={{
+            background: '#fff9ea',
+            borderColor: '#f5e3ba',
+            color: '#825619',
+            marginBottom: '28px',
+          }}
+        >
+          <AlertCircle aria-hidden="true" size={20} style={{ color: '#b57922', flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
-            <strong>Action required ({actionCount} pending)</strong>
-            <p>
-              You have {actionCount} request{actionCount > 1 ? 's' : ''} submitted by your direct reports waiting for your approval or rejection.
+            <strong style={{ color: '#684512' }}>Action Required ({actionCount} Pending)</strong>
+            <p style={{ color: '#8a6225' }}>
+              You have {actionCount} request{actionCount > 1 ? 's' : ''} submitted by your direct reports awaiting review.
             </p>
           </div>
-          <Link className="primary-button" style={{ height: '36px', minHeight: '36px', padding: '0 14px' }} to="/manager/requests?status=Pending">
+          <Link
+            className="primary-button"
+            style={{
+              height: '36px',
+              minHeight: '36px',
+              padding: '0 14px',
+              background: '#b57922',
+              borderColor: '#9e6717',
+            }}
+            to="/manager/requests?status=Pending"
+          >
             Review Now
           </Link>
         </section>
@@ -170,7 +188,11 @@ function ManagerDashboard() {
         </div>
 
         {recentActivity.length === 0 ? (
-          <p className="state-message">No recent requests recorded for your direct reports.</p>
+          <EmptyState
+            description="No recent requests recorded for your direct reports."
+            icon="clock"
+            title="No recent requests"
+          />
         ) : (
           <div className="request-list">
             {recentActivity.map((activity) => (

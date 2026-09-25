@@ -1,17 +1,22 @@
 import {
   ArrowLeftRight,
+  BookOpen,
   ClipboardList,
   LayoutDashboard,
+  LineChart,
   LogOut,
   MessageCircle,
   NotebookTabs,
+  Scale,
   ShieldAlert,
+  ShieldCheck,
   UserRound,
   Users,
 } from 'lucide-react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../../context/AuthContext'
+import { normalizeRole } from '../../utils/workspaceRouting'
 
 const employeeNavigationItems = [
   { label: 'Dashboard', path: '/employee', icon: LayoutDashboard, end: true },
@@ -27,6 +32,20 @@ const managerNavigationItems = [
   { label: 'Team Requests', path: '/manager/requests', icon: ClipboardList },
 ]
 
+const hrNavigationItems = [
+  { label: 'Dashboard', path: '/hr', icon: LayoutDashboard, end: true },
+  { label: 'Requests & Approvals', path: '/hr/requests', icon: ClipboardList },
+  { label: 'Knowledge Base', path: '/hr/knowledge-base', icon: BookOpen },
+  { label: 'Analytics & Reports', path: '/hr/analytics', icon: LineChart },
+  { label: 'Audit Log', path: '/hr/audit-log', icon: ShieldCheck },
+  { label: 'Users & Roles', path: '/hr/users', icon: Users },
+]
+
+const iccNavigationItems = [
+  { label: 'Dashboard', path: '/icc', icon: LayoutDashboard, end: true },
+  { label: 'Cases', path: '/icc/cases', icon: Scale },
+]
+
 function Sidebar({ employee }) {
   const { user, logout } = useAuth()
   const location = useLocation()
@@ -37,22 +56,46 @@ function Sidebar({ employee }) {
     navigate('/login', { replace: true })
   }
 
-  const userRole = (user?.role || '').toLowerCase()
-  const isManager = userRole.includes('manager') || userRole === 'hr'
-  const activeWorkspace = location.pathname.startsWith('/manager') ? 'manager' : 'employee'
-  const isManagerWorkspace = activeWorkspace === 'manager'
+  const isManager = normalizeRole(user?.role) === 'Manager'
 
-  const navItems = isManagerWorkspace ? managerNavigationItems : employeeNavigationItems
-  const sectionLabel = isManagerWorkspace ? 'Manager workspace' : 'Employee workspace'
-  const brandCaption = isManagerWorkspace ? 'Manager workspace portal' : 'Employee self-service'
+  let activeWorkspace = 'employee'
+  if (location.pathname.startsWith('/manager')) {
+    activeWorkspace = 'manager'
+  } else if (location.pathname.startsWith('/hr')) {
+    activeWorkspace = 'hr'
+  } else if (location.pathname.startsWith('/icc')) {
+    activeWorkspace = 'icc'
+  }
+
+  let navItems = employeeNavigationItems
+  let sectionLabel = 'Employee workspace'
+  let brandCaption = 'Employee self-service'
+  let brandDestination = '/employee'
+
+  if (activeWorkspace === 'manager') {
+    navItems = managerNavigationItems
+    sectionLabel = 'Manager workspace'
+    brandCaption = 'Manager workspace portal'
+    brandDestination = '/manager'
+  } else if (activeWorkspace === 'hr') {
+    navItems = hrNavigationItems
+    sectionLabel = 'HR Workspace'
+    brandCaption = 'HR Operations Portal'
+    brandDestination = '/hr'
+  } else if (activeWorkspace === 'icc') {
+    navItems = iccNavigationItems
+    sectionLabel = 'ICC Workspace'
+    brandCaption = 'Confidential ICC Portal'
+    brandDestination = '/icc'
+  }
+
+  const showWorkspaceSwitcher =
+    isManager && (activeWorkspace === 'manager' || activeWorkspace === 'employee')
 
   return (
     <aside className="sidebar" aria-label={sectionLabel}>
-      <Link
-        className="sidebar-brand"
-        to={isManagerWorkspace ? '/manager' : '/employee'}
-      >
-        <div className="brand-mark">HR</div>
+      <Link className="sidebar-brand" to={brandDestination}>
+        <div className="brand-mark">{activeWorkspace === 'icc' ? 'ICC' : 'HR'}</div>
         <div>
           <p className="brand-name">PeopleDesk</p>
           <p className="brand-caption">{brandCaption}</p>
@@ -74,15 +117,17 @@ function Sidebar({ employee }) {
         ))}
       </nav>
 
-      {/* For Managers only: Workspace switcher */}
-      {isManager && (
+      {/* For Managers only on Employee or Manager views: Workspace switcher */}
+      {showWorkspaceSwitcher && (
         <div className="sidebar-workspace-switch">
           <NavLink
             className="sidebar-link switcher-link"
-            to={isManagerWorkspace ? '/employee' : '/manager'}
+            to={activeWorkspace === 'manager' ? '/employee' : '/manager'}
           >
             <ArrowLeftRight aria-hidden="true" size={16} />
-            <span>{isManagerWorkspace ? 'Switch to Employee View' : 'Switch to Manager View'}</span>
+            <span>
+              {activeWorkspace === 'manager' ? 'Switch to Employee View' : 'Switch to Manager View'}
+            </span>
           </NavLink>
         </div>
       )}

@@ -3,20 +3,42 @@ import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../context/AuthContext'
+import {
+  AUTH_STATUS,
+  getDefaultWorkspaceRoute,
+  isPathAllowedForRole,
+} from '../utils/workspaceRouting'
 
 function Login() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { isAuthenticated, login } = useAuth()
+  const { authStatus, user, login } = useAuth()
   const [formData, setFormData] = useState({ email: '', password: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
-  if (isAuthenticated) {
-    const isManager = (user?.role || '').toLowerCase().includes('manager')
-    const target = location.state?.from || (isManager ? '/manager' : '/employee')
+  // 1. While auth state is initializing (checking saved token on mount),
+  // do NOT render the login form prematurely or trigger false redirects.
+  if (authStatus === AUTH_STATUS.INITIALIZING) {
+    return (
+      <div className="auth-page-shell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="auth-loading">Checking your session…</div>
+      </div>
+    )
+  }
+
+  // 2. If authenticated with a valid session, redirect to the authorized workspace.
+  if (authStatus === AUTH_STATUS.AUTHENTICATED && user) {
+    const defaultRoute = getDefaultWorkspaceRoute(user.role)
+    const requestedFrom = location.state?.from
+    const isAllowed =
+      requestedFrom &&
+      requestedFrom !== '/login' &&
+      requestedFrom !== '/' &&
+      isPathAllowedForRole(requestedFrom, user.role)
+    const target = isAllowed ? requestedFrom : defaultRoute
     return <Navigate replace to={target} />
   }
 
@@ -52,18 +74,24 @@ function Login() {
       return
     }
 
-    setLoading(true)
+    setSubmitting(true)
     setSubmitError('')
 
     try {
       const response = await login(formData.email.trim(), formData.password)
-      const isManager = (response?.role || '').toLowerCase().includes('manager')
-      const nextPath = location.state?.from || (isManager ? '/manager' : '/employee')
+      const defaultRoute = getDefaultWorkspaceRoute(response?.role)
+      const requestedFrom = location.state?.from
+      const isAllowed =
+        requestedFrom &&
+        requestedFrom !== '/login' &&
+        requestedFrom !== '/' &&
+        isPathAllowedForRole(requestedFrom, response?.role)
+      const nextPath = isAllowed ? requestedFrom : defaultRoute
       navigate(nextPath, { replace: true })
     } catch (error) {
       setSubmitError(error.message || 'Unable to sign in. Please try again.')
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
 
@@ -127,8 +155,8 @@ function Login() {
 
           {submitError ? <div className="form-alert form-alert-error">{submitError}</div> : null}
 
-          <button className="primary-button auth-submit" disabled={loading} type="submit">
-            {loading ? 'Signing in…' : 'Login'}
+          <button className="primary-button auth-submit" disabled={submitting} type="submit">
+            {submitting ? 'Signing in…' : 'Login'}
           </button>
         </form>
       </div>

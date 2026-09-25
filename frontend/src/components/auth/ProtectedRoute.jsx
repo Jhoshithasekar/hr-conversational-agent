@@ -1,32 +1,37 @@
 import { Navigate, useLocation } from 'react-router-dom'
 
 import { useAuth } from '../../context/AuthContext'
+import {
+  AUTH_STATUS,
+  getDefaultWorkspaceRoute,
+  isPathAllowedForRole,
+} from '../../utils/workspaceRouting'
 
-function ProtectedRoute({ children, allowedRoles }) {
-  const { isAuthenticated, loading, user } = useAuth()
+export { getDefaultWorkspaceRoute }
+
+function ProtectedRoute({ children }) {
+  const { authStatus, user } = useAuth()
   const location = useLocation()
 
-  if (loading) {
-    return <div className="auth-loading">Checking your session…</div>
+  if (authStatus === AUTH_STATUS.INITIALIZING) {
+    return (
+      <div className="auth-page-shell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="auth-loading">Checking your session…</div>
+      </div>
+    )
   }
 
-  if (!isAuthenticated) {
+  if (authStatus === AUTH_STATUS.UNAUTHENTICATED) {
     return <Navigate replace state={{ from: location.pathname }} to="/login" />
   }
 
-  if (allowedRoles && allowedRoles.length > 0) {
-    const userRole = (user?.role || '').toLowerCase()
-    const isAllowed = allowedRoles.some((role) => {
-      const target = role.toLowerCase()
-      return userRole === target || (target === 'manager' && userRole.includes('manager'))
-    })
-
-    if (!isAllowed) {
-      return <Navigate replace to="/employee" />
-    }
+  // Authorized role check
+  if (!isPathAllowedForRole(location.pathname, user?.role)) {
+    return <Navigate replace to={getDefaultWorkspaceRoute(user?.role)} />
   }
 
   return children
 }
 
 export default ProtectedRoute
+
