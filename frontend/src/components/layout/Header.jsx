@@ -2,7 +2,7 @@ import { Bell, Search } from 'lucide-react'
 
 import { useAuth } from '../../context/AuthContext'
 
-function Header({ title, description }) {
+function Header({ eyebrow = 'Employee workspace', title, description }) {
   const { user } = useAuth()
 
   const displayName = user?.name || 'Employee'
@@ -13,7 +13,7 @@ function Header({ title, description }) {
   return (
     <header className="page-header">
       <div>
-        <p className="eyebrow">Employee workspace</p>
+        <p className="eyebrow">{eyebrow}</p>
         <h1>{headerTitle}</h1>
         <p className="page-description">{description}</p>
       </div>

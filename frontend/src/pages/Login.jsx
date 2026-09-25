@@ -15,7 +15,8 @@ function Login() {
   const [loading, setLoading] = useState(false)
 
   if (isAuthenticated) {
-    const target = location.state?.from || '/employee'
+    const isManager = (user?.role || '').toLowerCase().includes('manager')
+    const target = location.state?.from || (isManager ? '/manager' : '/employee')
     return <Navigate replace to={target} />
   }
 
@@ -55,8 +56,9 @@ function Login() {
     setSubmitError('')
 
     try {
-      await login(formData.email.trim(), formData.password)
-      const nextPath = location.state?.from || '/employee'
+      const response = await login(formData.email.trim(), formData.password)
+      const isManager = (response?.role || '').toLowerCase().includes('manager')
+      const nextPath = location.state?.from || (isManager ? '/manager' : '/employee')
       navigate(nextPath, { replace: true })
     } catch (error) {
       setSubmitError(error.message || 'Unable to sign in. Please try again.')
