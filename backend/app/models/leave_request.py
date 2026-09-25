@@ -34,3 +34,5 @@ class LeaveRequest(Base):
     status = Column(String(20), nullable=False)
 
     submitted_at = Column(DateTime, nullable=True)
+
+    manager_comment = Column(Text, nullable=True)

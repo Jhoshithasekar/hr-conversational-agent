@@ -15,6 +15,7 @@ class LeaveRequestBase(BaseModel):
     approver_id: int
     status: str
     submitted_at: datetime | None = None
+    manager_comment: str | None = None
 
 
 class LeaveRequestCreate(LeaveRequestBase):
@@ -23,6 +24,10 @@ class LeaveRequestCreate(LeaveRequestBase):
 
 class LeaveRequestUpdate(LeaveRequestBase):
     pass
+
+
+class LeaveRequestAction(BaseModel):
+    comment: str | None = None
 
 
 class LeaveRequestResponse(LeaveRequestBase):
